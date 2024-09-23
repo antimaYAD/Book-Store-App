@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     "rest_framework",
     'rest_framework_simplejwt',
     "user",
+    "book",
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -206,3 +208,9 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_USER_HOST')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_USER_HOST')
+
+
+SWAGGER_SETTINGS = {
+    "USE_SESSION_AUTH": False,
+    "SECURITY_DEFINITIONS": {"Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"}},
+}

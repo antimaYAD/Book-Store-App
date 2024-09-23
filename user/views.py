@@ -13,10 +13,16 @@ from django.contrib.sites.shortcuts import get_current_site
 from rest_framework.decorators import api_view
 from .serializer import UserLoginSerializer,UserRegistrationSerializer
 import jwt
-
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 # Create your views here.
 class RegistrationUserView(APIView):
+    
+        
+    @swagger_auto_schema( operation_description="An User Regsitration  API endpoint",
+        request_body=UserRegistrationSerializer,
+        responses={200: UserRegistrationSerializer(many=True)})
     
     def post(self, request):
         try:
@@ -46,6 +52,12 @@ class RegistrationUserView(APIView):
           
           
 class LoginUserView(APIView):
+        
+    @swagger_auto_schema( operation_description="An User Regsitration  API endpoint",
+        request_body=UserLoginSerializer,
+        responses={200: UserLoginSerializer(many=True)})
+    
+    
     def post(self, request):
         try:
             serializer = UserLoginSerializer(data=request.data)
@@ -65,7 +77,15 @@ class LoginUserView(APIView):
             return Response({"message": str(e), "status": "Error"}, status=status.HTTP_400_BAD_REQUEST)
      
 
-            
+@swagger_auto_schema(
+    method='get',
+    operation_description="Verify a user's email using a token",
+    responses={
+        200: 'User email verified successfully',
+        400: 'Invalid token or user not found'
+    }
+)
+
 @api_view(["GET"])
 def verify_email(request,token):
     try:
