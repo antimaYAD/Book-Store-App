@@ -11,6 +11,7 @@ class Book(models.Model):
     description = models.TextField(null=True, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     price = models.PositiveIntegerField()
+    stock = models.IntegerField(default=0)
 
     class Meta:
         indexes = [

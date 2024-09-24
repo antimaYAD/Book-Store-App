@@ -4,5 +4,5 @@ from .models import Book
 class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
-        fields = ['id', 'name', 'author', 'description', 'price']
+        fields = ['id', 'name', 'author', 'description', 'price','stock']
         read_only_fields = ['user']  # user will be set in the view

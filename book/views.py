@@ -25,8 +25,10 @@ class BookViews(viewsets.ModelViewSet):
     def get_queryset(self):
         return super().get_queryset()
     
-    def list (self,request):
+    def list (self,request,*args, **kwargs):
         try:
+            if pk in kwargs:  
+                return self.retrieve(request,*args, **kwargs)
             queryset = self.get_queryset()
             serializer = BookSerializer(queryset, many=True)
             logger.info(f"The list of the book is shown successfully")
@@ -39,6 +41,27 @@ class BookViews(viewsets.ModelViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
     
     
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        try:
+            # Retrieve a single book by pk
+            instance = self.get_object()
+            serializer = BookSerializer(instance)
+            
+         
+            logger.info(f"Book with ID {pk} retrieved successfully")
+            
+           
+            return Response({"message": "Book retrieved", "status": "Success", "data": serializer.data}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+           
+            logger.error(f"Error while retrieving book with ID {pk}: {str(e)}")
+            return Response({
+                'error': f"An error occurred while retrieving the book with ID {pk}.",
+                'detail': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    
     
     @swagger_auto_schema(
         operation_description="Create a new book (Admin only)",
@@ -50,7 +73,7 @@ class BookViews(viewsets.ModelViewSet):
         })
     
     def create(self, request, *args, **kwargs):
-        if not request.user.is_staff:
+        if not request.user.is_superuser:
             return Response({"error": "You do not have permission to perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         try:
@@ -78,7 +101,7 @@ class BookViews(viewsets.ModelViewSet):
             
         })  
     def update (self,request,pk=None,*args, **kwargs):
-        if not request.user.is_staff:
+        if not request.user.is_superuser:
             return Response({"error": "You do not have permission to perform this action."}, status=status.HTTP_403_FORBIDDEN)
         try:
             instance = self.get_object()
@@ -103,7 +126,7 @@ class BookViews(viewsets.ModelViewSet):
         })    
         
     def destroy(self, request,pk=None, *args, **kwargs):
-        if not request.user.is_staff:
+        if not request.user.is_superuser:
             return Response({"error": "You do not have permission to perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         try:
