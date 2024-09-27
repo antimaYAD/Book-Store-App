@@ -3,7 +3,7 @@ from .models import CartModel, CartItems
 from book.models import Book
 
 class CartItemsSerializer(serializers.ModelSerializer):
-    book = serializers.SlugRelatedField(slug_field='title', queryset=Book.objects.all())
+    book = serializers.SlugRelatedField(slug_field='name', queryset=Book.objects.all())
 
     class Meta:
         model = CartItems
@@ -16,3 +16,4 @@ class CartModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartModel
         fields = ['id', 'total_price', 'total_quantity', 'is_ordered', 'user', 'cart_items']
+ 

@@ -14,6 +14,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from book.models import Book
 from django.db import models
+from rest_framework.decorators import action
 
 
 
@@ -34,12 +35,13 @@ class CartsViews(APIView):
                 cart_items_data = []  
                 for item in cart_items:
                     cart_items_data.append({
+                        'item_id':item.id,
                         'book_id': item.book.id,
                         'book_title': item.book.name, 
                         'quantity': item.quantity,
                         'price': item.price
                     })
-                return Response({"message":"The actice cart of the user","status":"success","data":{"cart_detail":serializer.data,"cart_items":cart_items_data}},status=status.HTTP_200_OK)
+                return Response({"message":"The actice cart of the user","status":"success","data":{"cart_detail":serializer.data,"cart_items": cart_items_data}},status=status.HTTP_200_OK)
             
         except CartModel.DoesNotExist:
             
@@ -140,10 +142,22 @@ class CartsViews(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-    
-    def delete(self,request,*args, **kwargs):
+            
+            
+    # @swagger_auto_schema(
+    #     operation_description="Delete a cart or cart item. If `pk` is provided, it deletes the cart item; otherwise, it deletes the entire active cart.",
+    #     responses={
+    #         204: 'Cart or cart item deleted successfully',
+    #         404: 'Cart or cart item not found',
+    #         500: 'An unexpected error occurred'
+    #     }
+    # )
+  
+    def delete(self,request,pk=None,*args, **kwargs):
         try:
+            if pk:
+                return self.delete_cart_item(request, pk, *args, **kwargs)
+
             instance = CartModel.objects.filter(user=request.user,is_ordered=False).first()
             
             if not instance:
@@ -160,8 +174,124 @@ class CartsViews(APIView):
             # Handle any other unexpected errors
             logger.error(f"An unexpected error occurred while deleting cart for user {request.user.id}: {str(e)}")
             return Response({"message": "An unexpected error occurred.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
         
+        
+    def delete_cart_item(self,request,pk,*args, **kwargs):
+        try:
+            active_cart = CartModel.objects.get(user=request.user,is_ordered=False)
+            cart_item = CartItems.objects.get(id=pk,cart=active_cart)
+            
+            if not cart_item:
+                return Response({"message":"No such item is found or add in the active cart"},status=status.HTTP_404_NOT_FOUND)
+            cart_item.delete()
+            logger.info(f"the item from the cart is delete")
+             
+            return Response({"message": "Item deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        
+        except CartItems.DoesNotExist:
+            return Response({"error": "Cart item not found in your active cart"}, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"A error occurred : str(e)")
+            return Response({"error": "An error occurred while deleting the item"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    
                 
 
 
+class OrderViews(APIView):
+    
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    
+    def post (self,request,*args, **kwargs):
+        try:
+            
+            instance = CartModel.objects.filter(user=request.user,is_ordered=False).first()
+            
+            if instance:
+                cart_items = CartItems.objects.filter(cart=instance)
+                if not cart_items.exists():
+                     return Response({"message": "The cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+                 
+                for item in cart_items:
+                    if item.quantity > item.book.stock:
+                        return Response(
+                        {"message": f"Insufficient stock for the book {item.book.name}."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                for item  in cart_items:
+                    book = item.book
+                    book.stock -= item.quantity
+                    book.save()
+                    
+                instance.is_ordered = True
+                instance.save()
+                
+                logger.info(f"Order created for user {request.user.id}")
+                return Response({"message":"The order placed ","status":"Success"},status=status.HTTP_200_OK)
+            
+            return Response({"message": "No active cart to order."}, status=status.HTTP_400_BAD_REQUEST)
+            
+                
+        except Exception as e:
+            logger.error(f"An error occurred during ordering: {str(e)}")
+            return Response(
+                {"message": "An error occurred during the ordering process.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+            
+            
+    def get (self,request):
+        
+        try:
+            instance =  CartModel.objects.filter(user=request.user,is_ordered=True)
+            
+            if not instance.exists():
+                return Response({"message": " No order Found","status":"Error"},status=status.HTTP_404_NOT_FOUND)
+            
+            serializer = CartModelSerializer(instance,many=True)
+            logger.info(f"The order details")
+            return Response({"message": "Order details fetched successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"An error occurred while retrieving orders: {str(e)}")
+            return Response(
+                {"message": "An error occurred while retrieving the orders.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+            
+    def patch(self,request):
+        
+        try:
+            instance = CartModel.objects.filter(user=request.user,is_ordered=True).first()
+            
+            if not instance:
+                 return Response({"message": "No order found to cancel."}, status=status.HTTP_404_NOT_FOUND)
+             
+            cart_items = CartItems.objects.filter(cart=instance)
+            
+            for item in cart_items:
+                book = item.book
+                book.stock += item.quantity
+                book.save()
+                
+            instance.delete()
+            
+            logger.info(f"The order is been cancel")
+            return Response({"message": "Order cancelled successfully."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"An error occurred while cancelling the order: {str(e)}")
+            return Response(
+                {"message": "An error occurred while cancelling the order.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+            
+            

@@ -44,7 +44,7 @@ class RegistrationUserView(APIView):
                 recipient_list=[user.email],
             )
           
-            return Response({"message": "User created successfully", "status": "Success","data":serializer.data}, status=status.HTTP_201_CREATED)
+            return Response({"message": "User created successfully", "status": "Success","data":serializer.data}, status=status.HTTP_200_OK)
         
         except Exception as e:
               return Response({"message": str(e), "status": "Error"}, status=status.HTTP_400_BAD_REQUEST)
